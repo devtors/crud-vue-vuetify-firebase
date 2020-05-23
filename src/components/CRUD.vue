@@ -14,59 +14,70 @@
           <template v-slot:activator="{ on }">
             <v-btn color="primary" dark class="mb-2 text-none" v-on="on">New Product</v-btn>
           </template>
-          <v-card>
-            <v-card-title>
-              <span class="headline">{{ formTitle }}</span>
-            </v-card-title>
+          <v-form
+            ref="formProduct"
+            v-model="formProduct"
+            lazy-validation
+          >
+            <v-card>
+              <v-card-title>
+                <span class="headline">{{ formTitle }}</span>
+              </v-card-title>
 
-            <v-card-text>
-              <v-container>
-                <v-row>
-                  <v-col cols="12" sm="6" md="4">
-                    <v-text-field
-                      v-model="editedItem.referenceCode"
-                      outlined
-                      label="Reference Code"
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6" md="8">
-                    <v-text-field
-                      v-model="editedItem.name"
-                      outlined
-                      label="Name"
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12">
-                    <v-textarea
-                      v-model="editedItem.description"
-                      outlined
-                      label="Description"
-                    ></v-textarea>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="editedItem.price"
-                      outlined
-                      label="Price"
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="editedItem.quantity"
-                      outlined
-                      label="Quantity"
-                    ></v-text-field>
-                  </v-col>
-                </v-row>
-              </v-container>
-            </v-card-text>
+              <v-card-text>
+                <v-container>
+                  <v-row>
+                    <v-col cols="12" sm="6" md="4">
+                      <v-text-field
+                        v-model="editedItem.referenceCode"
+                        :rules="rules.referenceCode"
+                        outlined
+                        label="Reference Code"
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6" md="8">
+                      <v-text-field
+                        v-model="editedItem.name"
+                        :rules="rules.name"
+                        outlined
+                        label="Name"
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12">
+                      <v-textarea
+                        v-model="editedItem.description"
+                        :rules="rules.description"
+                        outlined
+                        label="Description"
+                      ></v-textarea>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="editedItem.price"
+                        :rules="rules.price"
+                        outlined
+                        label="Price"
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="editedItem.quantity"
+                        :rules="rules.quantity"
+                        outlined
+                        label="Quantity"
+                      ></v-text-field>
+                    </v-col>
+                  </v-row>
+                </v-container>
+              </v-card-text>
 
-            <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="error darken-1" medium text elevation="2" @click="close">Cancel</v-btn>
-              <v-btn color="blue darken-1" medium dark elevation="2" @click="save">Save</v-btn>
-            </v-card-actions>
-          </v-card>
+              <v-card-actions>
+                <v-spacer></v-spacer>
+                <v-btn color="error darken-1" medium text elevation="2" @click="close">Cancel</v-btn>
+                <v-btn color="primary" medium elevation="2" @click="save" :disabled="!formProduct">Save</v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-form>
         </v-dialog>
       </v-toolbar>
     </template>
@@ -90,6 +101,7 @@ import { db , Timestamp } from '../plugins/db'
 const NAME_COLLECTION_PRODUCTS = 'products'
 export default {
   data: () => ({
+    formProduct: true,
     dialog: false,
     headers: [
       { text: 'Reference Code', align: 'center', value: 'referenceCode' },
@@ -111,8 +123,8 @@ export default {
       referenceCode: null,
       name: null,
       description: null,
-      price: 0,
-      quantity: 0,
+      price: null,
+      quantity: null,
       createdAt: null,
       updatedAt: null,
     },
@@ -120,11 +132,37 @@ export default {
       referenceCode: null,
       name: null,
       description: null,
-      price: 0,
-      quantity: 0,
+      price: null,
+      quantity: null,
       createdAt: null,
       updatedAt: null,
     },
+    rules: {
+      referenceCode: [
+        v => {
+          if (!v) {
+            return true
+          }
+          return /^([-a-zA-Z0-9])+$/.test(v) || 'Please enter a valid reference code'
+        }
+      ],
+      name: [
+        v => !!v || 'Name is required',
+        v => /([a-zA-Z0-9\s])+$/.test(v) || 'Please enter a valid name'
+      ],
+      description: [
+        v => !!v || 'Description is required',
+        v => /([a-zA-Z0-9\s])+$/.test(v) || 'Please enter a valid description'
+      ],
+      price: [
+        v => !!v || 'Price is required',
+        v => /^[0-9]+(\.[0-9]+)?$/.test(v) || 'Please enter a valid price'
+      ],
+      quantity: [
+        v => !!v || 'Quantity is required',
+        v => /^[0-9]+$/.test(v) || 'Please enter a valid quantity'
+      ]
+    }
   }),
 
   firestore: {
@@ -163,15 +201,17 @@ export default {
     },
 
     save() {
-      if (this.editedIndex > -1) {
-        this.editedItem.updatedAt = Timestamp.now()
-        db.collection(NAME_COLLECTION_PRODUCTS).doc(this.editedItem.id).update(this.editedItem)
-      } else {
-        this.editedItem.createdAt = Timestamp.now()
-        this.editedItem.updatedAt = Timestamp.now()
-        db.collection(NAME_COLLECTION_PRODUCTS).add(this.editedItem)
+      if (this.$refs.formProduct.validate()) {
+        if (this.editedIndex > -1) {
+          this.editedItem.updatedAt = Timestamp.now()
+          db.collection(NAME_COLLECTION_PRODUCTS).doc(this.editedItem.id).update(this.editedItem)
+        } else {
+          this.editedItem.createdAt = Timestamp.now()
+          this.editedItem.updatedAt = Timestamp.now()
+          db.collection(NAME_COLLECTION_PRODUCTS).add(this.editedItem)
+        }
+        this.close()
       }
-      this.close()
     },
 
     close() {
